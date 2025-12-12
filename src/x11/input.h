@@ -27,6 +27,9 @@ private:
     int pan_start_x;
     int pan_start_y;
     
+    // Shell process for signal forwarding
+    pid_t shell_pid;
+    
     // Escape sequence to X11 KeySym mapping
     std::unordered_map<std::string, unsigned int> key_mapping;
     
@@ -44,6 +47,7 @@ public:
               int win_w, int win_h, int t_cols, int t_lines);
     
     void setRenderer(ANSIRenderer* r) { renderer = r; }
+    void setShellPid(pid_t pid) { shell_pid = pid; }
     
     // Process input from stdin (non-blocking)
     void processInput();

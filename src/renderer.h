@@ -1,5 +1,14 @@
 #pragma once
-#include "capture.h"
+
+// Backend-specific cursor data type
+#if defined(BUILD_WAYLAND_BACKEND)
+    #include "wayland/capture.h"
+    using CaptureBackend = WaylandCapturer;
+#else
+    #include "x11/capture.h"
+    using CaptureBackend = X11Capturer;
+#endif
+
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -28,8 +37,8 @@ private:
     uint8_t color_lookup[32768];    // RGB555 -> ANSI256
     uint8_t grayscale_lookup[256];  // Luminance -> ANSI Gray
     
-    // Current cursor data
-    X11Capturer::CursorData current_cursor;
+    // Current cursor data (backend-agnostic)
+    CaptureBackend::CursorData current_cursor;
     
     void clampViewport();
     
@@ -49,8 +58,8 @@ public:
     // Map terminal coordinates to image coordinates (public for input handler)
     void mapTermToImage(int term_x, int term_y, int& img_x, int& img_y);
     
-    // Set cursor for software rendering
-    void setCursor(const X11Capturer::CursorData& cursor) {
+    // Set cursor for software rendering (backend-agnostic)
+    void setCursor(const CaptureBackend::CursorData& cursor) {
         current_cursor = cursor;
     }
     

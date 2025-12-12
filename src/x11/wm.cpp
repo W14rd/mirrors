@@ -13,10 +13,10 @@
 // Constants for styling
 const int TITLE_BAR_HEIGHT = 24;
 const int BORDER_WIDTH = 2; 
-const int HANDLE_SIZE = 5; // FIXED: Increased threshold for resizing
-const unsigned long COLOR_TITLE_BG = 0x333333; // Dark Grey
-const unsigned long COLOR_TITLE_TEXT = 0xFFFFFF; // White
-const unsigned long COLOR_BORDER = 0x000000; // Black
+const int HANDLE_SIZE = 5; 
+const unsigned long COLOR_TITLE_BG = 0x333333; 
+const unsigned long COLOR_TITLE_TEXT = 0xFFFFFF; 
+const unsigned long COLOR_BORDER = 0x000000; 
 const unsigned long COLOR_BTN_CLOSE = 0xFF5555; 
 const unsigned long COLOR_BTN_FULL = 0x55FF55; 
 
@@ -27,7 +27,6 @@ struct Client {
     Window close_btn;
     Window full_btn;
     
-    // Resize handles (InputOnly)
     Window resize_l, resize_r, resize_t, resize_b;
     Window resize_bl, resize_br, resize_tl, resize_tr; 
     
@@ -40,7 +39,6 @@ Display* dpy;
 Window root;
 std::vector<Client*> clients;
 
-// Atom definitions
 Atom wm_protocols;
 Atom wm_delete_window;
 
@@ -77,12 +75,10 @@ void send_configure_notify(Client* c) {
 }
 
 void update_frame_extents(Client* c) {
-    // Update resize handles positions
     int w = c->w;
     int h = c->h + TITLE_BAR_HEIGHT;
     int hs = HANDLE_SIZE;
 
-    // Move resize handles
     XMoveResizeWindow(dpy, c->resize_l, 0, hs, hs, h - 2*hs);
     XMoveResizeWindow(dpy, c->resize_r, w - hs, hs, hs, h - 2*hs);
     XMoveResizeWindow(dpy, c->resize_t, hs, 0, w - 2*hs, hs);
@@ -93,13 +89,9 @@ void update_frame_extents(Client* c) {
     XMoveResizeWindow(dpy, c->resize_bl, 0, h - hs, hs, hs);
     XMoveResizeWindow(dpy, c->resize_br, w - hs, h - hs, hs, hs);
     
-    // Update title bar
     XResizeWindow(dpy, c->title_bar, c->w, TITLE_BAR_HEIGHT);
     
-    // FIXED: Layout logic for buttons
-    // Move Fullscreen and Close buttons around 15px from bar's right side
-    // Add 3px gap between the buttons
-    int btn_size = TITLE_BAR_HEIGHT - 4; // 20px if Height is 24
+    int btn_size = TITLE_BAR_HEIGHT - 4; 
     int margin_right = 15;
     int btn_gap = 3;
     
@@ -119,15 +111,13 @@ void draw_button(Window btn, const char* type) {
     XClearWindow(dpy, btn);
     
     GC gc = XCreateGC(dpy, btn, 0, NULL);
-    XSetForeground(dpy, gc, 0xFFFFFF); // White
+    XSetForeground(dpy, gc, 0xFFFFFF); 
     XSetLineAttributes(dpy, gc, 2, LineSolid, CapButt, JoinMiter);
 
     if (strcmp(type, "close") == 0) {
-        // Draw X
         XDrawLine(dpy, btn, gc, 2, 2, w-3, h-3);
         XDrawLine(dpy, btn, gc, w-3, 2, 2, h-3);
     } else if (strcmp(type, "full") == 0) {
-        // Draw Box
         XDrawRectangle(dpy, btn, gc, 2, 2, w-5, h-5);
     }
     XFreeGC(dpy, gc);
@@ -142,14 +132,11 @@ void draw_title(Client* c) {
         XSetForeground(dpy, gc, COLOR_TITLE_TEXT);
         
         int len = strlen(name);
-        // Note: Using default font for simplicity as requested, 
-        // improper font handling is a common cause of crashes in simple WMs, 
-        // but we stick to the provided style.
         XFontStruct* font = XQueryFont(dpy, XGContextFromGC(gc));
         int text_width = 0;
         if (font) {
             text_width = XTextWidth(font, name, len);
-            XFreeFontInfo(NULL, font, 1); // Cleanup to prevent leak/crash
+            XFreeFontInfo(NULL, font, 1); 
         }
         
         int x = (c->w - text_width) / 2;
@@ -183,22 +170,16 @@ void frame_window(Window w) {
     c->h = attrs.height;
     c->fullscreen = false;
     
-    // Initialize saved state to current state to prevent garbage values
     c->saved_x = c->x; c->saved_y = c->y; 
     c->saved_w = c->w; c->saved_h = c->h;
 
-    // Frame
     c->frame = XCreateSimpleWindow(dpy, root, c->x, c->y, c->w, c->h + TITLE_BAR_HEIGHT, BORDER_WIDTH, COLOR_BORDER, 0xFFFFFF);
-    
-    // Title bar
     c->title_bar = XCreateSimpleWindow(dpy, c->frame, 0, 0, c->w, TITLE_BAR_HEIGHT, 0, COLOR_BORDER, COLOR_TITLE_BG);
     
-    // Buttons (Positions will be fixed in update_frame_extents)
     int btn_size = TITLE_BAR_HEIGHT - 4;
     c->close_btn = XCreateSimpleWindow(dpy, c->title_bar, 0, 0, btn_size, btn_size, 0, COLOR_BORDER, COLOR_TITLE_BG);
     c->full_btn = XCreateSimpleWindow(dpy, c->title_bar, 0, 0, btn_size, btn_size, 0, COLOR_BORDER, COLOR_TITLE_BG);
 
-    // Resize Handles
     c->resize_l = create_handle(c->frame, XCreateFontCursor(dpy, XC_left_side));
     c->resize_r = create_handle(c->frame, XCreateFontCursor(dpy, XC_right_side));
     c->resize_t = create_handle(c->frame, XCreateFontCursor(dpy, XC_top_side));
@@ -253,23 +234,17 @@ void toggle_fullscreen(Client* c) {
         XWindowAttributes rattrs;
         XGetWindowAttributes(dpy, root, &rattrs);
         
-        // Go fullscreen
         c->x = 0; c->y = 0; 
         c->w = rattrs.width; 
-        c->h = rattrs.height - TITLE_BAR_HEIGHT; // Keep titlebar visible
+        c->h = rattrs.height - TITLE_BAR_HEIGHT; 
         
-        // FIXED: Remove border in fullscreen to avoid black stripes/offsets
         XSetWindowBorderWidth(dpy, c->frame, 0);
-        
         c->fullscreen = true;
     } else {
-        // Restore
         c->x = c->saved_x; c->y = c->saved_y; 
         c->w = c->saved_w; c->h = c->saved_h;
         
-        // FIXED: Restore border
         XSetWindowBorderWidth(dpy, c->frame, BORDER_WIDTH);
-        
         c->fullscreen = false;
     }
     
@@ -278,7 +253,6 @@ void toggle_fullscreen(Client* c) {
     update_frame_extents(c);
     send_configure_notify(c);
     
-    // FIXED: Ensure focus stays or returns so keyboard shortcuts work
     XRaiseWindow(dpy, c->frame);
     XSetInputFocus(dpy, c->window, RevertToPointerRoot, CurrentTime);
 }
@@ -294,7 +268,6 @@ void close_window(Client* c) {
     XSendEvent(dpy, c->window, False, NoEventMask, &ev);
 }
 
-// Interaction State
 enum Action { NONE, MOVE, RESIZE_L, RESIZE_R, RESIZE_T, RESIZE_B, RESIZE_TL, RESIZE_TR, RESIZE_BL, RESIZE_BR };
 Action action = NONE;
 Client* active_client = nullptr;
@@ -342,9 +315,8 @@ int main() {
             XConfigureRequestEvent& cre = ev.xconfigurerequest;
             Client* c = find_client(cre.window);
             if (c) {
-                // FIXED: Prevent apps from breaking fullscreen by requesting resize
                 if (c->fullscreen) {
-                    send_configure_notify(c); // Tell app to stay put
+                    send_configure_notify(c);
                 } else {
                     c->w = cre.width;
                     c->h = cre.height;

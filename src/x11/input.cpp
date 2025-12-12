@@ -4,13 +4,14 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstring>
+#include <csignal>
 #include <iostream>
 
 InputHandler::InputHandler() 
     : display(nullptr), target_window(0), term_cols(0), term_lines(0),
       button_state(0), last_mouse_x(0), last_mouse_y(0),
       potential_pan(false), panning_active(false), pan_start_x(0), pan_start_y(0),
-      renderer(nullptr) {
+      shell_pid(-1), renderer(nullptr) {
 }
 
 InputHandler::~InputHandler() {
@@ -139,9 +140,10 @@ void InputHandler::processInput() {
             }
         }
         
-        // Ctrl+C (handled separately for exit)
-        if (buf[pos] == 0x03) {
-            std::cerr << "Ctrl+C detected, exiting" << std::endl;
+        
+        // Ctrl+\ (0x1C) - exit mirrors application
+        if (buf[pos] == 0x1C) {
+            std::cerr << "Ctrl+\\ detected, exiting" << std::endl;
             exit(0);
         }
         
