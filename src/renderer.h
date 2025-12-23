@@ -22,13 +22,12 @@ private:
     RenderMode mode;
     
     std::string buffer;
-    std::vector<int> back_buffer; // For double-buffering optimization
+    std::vector<int> back_buffer;
     
-    // Precomputed lookup tables
-    uint8_t color_lookup[32768];    // RGB555 -> ANSI256
-    uint8_t grayscale_lookup[256];  // Luminance -> ANSI Gray
+    uint8_t color_lookup[32768];
+    uint8_t grayscale_lookup[256];
     
-    // Current cursor data
+
     X11Capturer::CursorData current_cursor;
     
     void clampViewport();
@@ -46,10 +45,9 @@ public:
     void setCellChar(char c);
     void setMode(RenderMode m);
     
-    // Map terminal coordinates to image coordinates (public for input handler)
+
     void mapTermToImage(int term_x, int term_y, int& img_x, int& img_y);
     
-    // Set cursor for software rendering
     void setCursor(const X11Capturer::CursorData& cursor) {
         current_cursor = cursor;
     }

@@ -26,9 +26,7 @@ bool X11Capturer::initDamage() {
         return false;
     }
     
-    // Create damage object for the window
-    // DamageReportNonEmpty: only get notified when damage transitions from empty to non-empty
-    // This is more efficient than DamageReportRawRectangles
+
     damage = XDamageCreate(display, window, XDamageReportNonEmpty);
     if (!damage) {
         std::cerr << "Failed to create damage object\n";
@@ -40,7 +38,7 @@ bool X11Capturer::initDamage() {
 }
 
 bool X11Capturer::initXFixes() {
-    int major = 4, minor = 0; // We need at least 4.0 for cursor
+    int major = 4, minor = 0;
     if (!XFixesQueryVersion(display, &major, &minor)) {
         std::cerr << "XFixes extension not available\n";
         return false;
@@ -51,7 +49,6 @@ bool X11Capturer::initXFixes() {
         return false;
     }
     
-    // Select cursor notify events
     XFixesSelectCursorInput(display, window, XFixesDisplayCursorNotifyMask);
     
     return true;
@@ -71,10 +68,10 @@ bool X11Capturer::init(const char* display_name, Window target_window, int w, in
     height = h;
     frame_dirty = true;
     
-    // Initialize extensions
+    
     initXFixes();
     
-    // Try XShm for zero-copy capture
+    
     if (XShmQueryExtension(display)) {
         Visual* visual = DefaultVisual(display, DefaultScreen(display));
         int depth = DefaultDepth(display, DefaultScreen(display));
@@ -85,7 +82,7 @@ bool X11Capturer::init(const char* display_name, Window target_window, int w, in
         if (ximage) {
             size_t size = ximage->bytes_per_line * ximage->height;
             
-            // Use IPC_PRIVATE for security, 0600 permissions
+            
             shminfo.shmid = shmget(IPC_PRIVATE, size, IPC_CREAT | 0600);
             
             if (shminfo.shmid != -1) {
@@ -95,7 +92,7 @@ bool X11Capturer::init(const char* display_name, Window target_window, int w, in
                     ximage->data = shminfo.shmaddr;
                     shminfo.readOnly = False;
                     
-                    // Mark for immediate destruction - auto cleanup on crash
+                   
                     shmctl(shminfo.shmid, IPC_RMID, nullptr);
                     
                     if (XShmAttach(display, &shminfo)) {
@@ -128,8 +125,8 @@ bool X11Capturer::init(const char* display_name, Window target_window, int w, in
         std::cerr << "XShm extension not available\n";
     }
     
-    // Initialize damage tracking after SHM setup
-    // IMPORTANT: Only enable damage if XShm worked
+    
+    
     if (using_shm) {
         if (!initDamage()) {
             std::cerr << "Damage extension not available - will capture every frame\n";
@@ -142,7 +139,7 @@ bool X11Capturer::init(const char* display_name, Window target_window, int w, in
 void X11Capturer::processEvents() {
     if (!display) return;
     
-    // Process all pending events without blocking
+    
     while (XPending(display) > 0) {
         XEvent event;
         XNextEvent(display, &event);
@@ -160,7 +157,7 @@ bool X11Capturer::isDirty() {
 
 void X11Capturer::clearDamage() {
     if (damage_available && damage) {
-        // Subtract all damage, resetting the damage region
+        
         XDamageSubtract(display, damage, None, None);
     }
     frame_dirty = false;
@@ -169,24 +166,24 @@ void X11Capturer::clearDamage() {
 uint8_t* X11Capturer::captureFrame(bool force) {
     if (!display || !window) return nullptr;
     
-    // CRITICAL FIX: Always capture on first call or force
+    
     static bool first_frame = true;
     if (first_frame) {
         force = true;
         first_frame = false;
     }
     
-    // Check if we need to capture
+    
     if (!force && damage_available) {
         processEvents();
         if (!frame_dirty) {
-            // Return cached data if available
+            
             return (using_shm && ximage) ? (uint8_t*)ximage->data : nullptr;
         }
     }
     
     if (using_shm && ximage) {
-        // Zero-copy capture using XShm
+        
         if (XShmGetImage(display, window, ximage, 0, 0, AllPlanes)) {
             if (damage_available) clearDamage();
             return (uint8_t*)ximage->data;
@@ -195,7 +192,7 @@ uint8_t* X11Capturer::captureFrame(bool force) {
             return nullptr;
         }
     } else {
-        // Fallback to regular XGetImage
+        
         XImage* img = XGetImage(display, window, 0, 0, width, height, 
                                 AllPlanes, ZPixmap);
         if (img) {
@@ -224,13 +221,13 @@ X11Capturer::CursorData X11Capturer::getCursor() {
     XFixesCursorImage* img = XFixesGetCursorImage(display);
     if (!img) return data;
 
-    // Quick hash check to see if cursor changed
+    
     uint64_t hash = 5381;
     for (int i = 0; i < img->width * img->height; ++i) {
         hash = ((hash << 5) + hash) + (uint32_t)img->pixels[i];
     }
     
-    // If cursor hasn't changed, return cached data with updated position
+    
     if (hash == cursor_cache.hash && 
         cursor_cache.width == img->width && 
         cursor_cache.height == img->height) {
@@ -239,16 +236,16 @@ X11Capturer::CursorData X11Capturer::getCursor() {
             cursor_cache.pixels,
             cursor_cache.width,
             cursor_cache.height,
-            0, 0, // Will update below
+            0, 0, 
             cursor_cache.xhot,
             cursor_cache.yhot,
             true,
             cursor_cache.name,
             hash,
-            false // Not changed
+            false 
         };
         
-        // Update position only
+        
         int dest_x, dest_y;
         Window child;
         XTranslateCoordinates(display, DefaultRootWindow(display), window, 
@@ -260,7 +257,7 @@ X11Capturer::CursorData X11Capturer::getCursor() {
         return data;
     }
     
-    // Cursor changed - update cache
+    
     data.visible = true;
     data.changed = true;
     data.width = img->width;
@@ -269,7 +266,7 @@ X11Capturer::CursorData X11Capturer::getCursor() {
     data.yhot = img->yhot;
     data.hash = hash;
     
-    // Convert root coordinates to window coordinates
+    
     int dest_x, dest_y;
     Window child;
     XTranslateCoordinates(display, DefaultRootWindow(display), window, 
@@ -277,7 +274,7 @@ X11Capturer::CursorData X11Capturer::getCursor() {
     data.x = dest_x;
     data.y = dest_y;
 
-    // Get cursor name if available
+    
     if (img->atom) {
         char* name = XGetAtomName(display, img->atom);
         if (name) {
@@ -286,13 +283,13 @@ X11Capturer::CursorData X11Capturer::getCursor() {
         }
     }
 
-    // Copy pixels
+    
     data.pixels.resize(data.width * data.height);
     for (int i = 0; i < data.width * data.height; ++i) {
         data.pixels[i] = (uint32_t)img->pixels[i];
     }
 
-    // Update cache
+    
     cursor_cache = {
         hash,
         data.pixels,
@@ -308,14 +305,14 @@ X11Capturer::CursorData X11Capturer::getCursor() {
 }
 
 void X11Capturer::cleanup() {
-    // Destroy damage object first
+    
     if (damage_available && damage) {
         XDamageDestroy(display, damage);
         damage = 0;
         damage_available = false;
     }
     
-    // Cleanup XShm
+    
     if (using_shm && ximage) {
         XShmDetach(display, &shminfo);
         
@@ -324,7 +321,7 @@ void X11Capturer::cleanup() {
             shminfo.shmaddr = nullptr;
         }
         
-        // Prevent XDestroyImage from trying to free SHM memory
+        
         ximage->data = nullptr;
         XDestroyImage(ximage);
         ximage = nullptr;

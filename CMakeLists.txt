@@ -15,11 +15,15 @@ find_package(Threads REQUIRED)
 
 # Check for required X11 extensions
 if(NOT X11_Xext_LIB)
-    message(FATAL_ERROR "Xext library not found (required for XShm)")
+    message(FATAL_ERROR "Xext library not found")
 endif()
 
 if(NOT X11_Xtst_LIB)
-    message(FATAL_ERROR "Xtst library not found (required for XTest)")
+    message(FATAL_ERROR "Xtst library not found")
+endif()
+
+if(NOT X11_Xdamage_LIB)
+    message(FATAL_ERROR "Xdamage library not found")
 endif()
 
 # Source files
@@ -47,8 +51,8 @@ target_link_libraries(mirrors
 )
 
 # Window Manager
-add_executable(mirrors-wm src/wm.cpp)
-target_link_libraries(mirrors-wm ${X11_LIBRARIES})
+add_executable(.wm src/wm.cpp)
+target_link_libraries(.wm ${X11_LIBRARIES})
 
 # Installation
 install(TARGETS mirrors DESTINATION bin)
