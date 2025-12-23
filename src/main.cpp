@@ -1,6 +1,17 @@
-#include "capture.h"
+// Backend selection: X11 or Wayland
+#if defined(BUILD_WAYLAND_BACKEND)
+    #include "wayland/capture.h"
+    #include "wayland/input.h"
+    using Capturer = WaylandCapturer;
+    using InputHandler = WaylandInputHandler;
+#else
+    #include "x11/capture.h"
+    #include "x11/input.h"
+    using Capturer = X11Capturer;
+    using InputHandler = InputHandler;
+#endif
+
 #include "renderer.h"
-#include "input.h"
 #include <iostream>
 #include <thread>
 #include <atomic>
@@ -20,14 +31,26 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <filesystem>
+<<<<<<< HEAD
 
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+=======
+>>>>>>> refs/remotes/origin/master
 
+// X11 includes (only for X11 backend)
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+
+// Global control
 std::atomic<bool> running(true);
 struct termios orig_termios;
 
+<<<<<<< HEAD
+=======
+// Child Process IDs
+>>>>>>> refs/remotes/origin/master
 pid_t xvfb_pid = -1;
 pid_t wm_pid = -1;
 pid_t app_pid = -1;
@@ -46,7 +69,12 @@ void restoreTerminal() {
 
 
 void signalHandler(int sig) {
+<<<<<<< HEAD
 
+=======
+    // Only exit on SIGTERM and SIGQUIT
+    // SIGINT (^C) and SIGTSTP (^Z) are handled via input forwarding
+>>>>>>> refs/remotes/origin/master
     if (sig == SIGTERM || sig == SIGQUIT) {
         running = false;
     }
@@ -55,11 +83,16 @@ void signalHandler(int sig) {
 int MyXErrorHandler(Display* d, XErrorEvent* e) {
     char error_text[256];
     XGetErrorText(d, e->error_code, error_text, sizeof(error_text));
+<<<<<<< HEAD
     return 0;
 }
 
 int MyXIOErrorHandler(Display* d) {
     // Suppress fatal IO error messages on exit
+=======
+    // Suppress non-critical errors during startup
+    // fprintf(stderr, "X Error: %s (code: %d)\n", error_text, e->error_code);
+>>>>>>> refs/remotes/origin/master
     return 0;
 }
 
@@ -67,7 +100,11 @@ void setupTerminal() {
     tcgetattr(STDIN_FILENO, &orig_termios);
     atexit(restoreTerminal);
     struct termios raw = orig_termios;
+<<<<<<< HEAD
     raw.c_lflag &= ~(ICANON | ECHO | ISIG);
+=======
+    raw.c_lflag &= ~(ICANON | ECHO | ISIG);  // Disable signals from terminal
+>>>>>>> refs/remotes/origin/master
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
@@ -100,7 +137,11 @@ int findFreeDisplay() {
     }
 }
 
+<<<<<<< HEAD
 
+=======
+// Recursive window finder
+>>>>>>> refs/remotes/origin/master
 Window findAppWindow(Display* d, Window current_w) {
     Window root, parent, *children;
     unsigned int nchildren;
@@ -113,6 +154,10 @@ Window findAppWindow(Display* d, Window current_w) {
     for (unsigned int i = 0; i < nchildren; i++) {
         XWindowAttributes attrs;
         if (XGetWindowAttributes(d, children[i], &attrs)) {
+<<<<<<< HEAD
+=======
+            // Find a visible window that is reasonably large (ignoring helper windows)
+>>>>>>> refs/remotes/origin/master
             if (attrs.map_state == IsViewable && attrs.width > 50 && attrs.height > 50) {
                 found = children[i];
                 break;
@@ -128,7 +173,11 @@ Window findAppWindow(Display* d, Window current_w) {
     return found;
 }
 
+<<<<<<< HEAD
 void captureThread(X11Capturer* capturer, ANSIRenderer* renderer,
+=======
+void captureThread(Capturer* capturer, ANSIRenderer* renderer,
+>>>>>>> refs/remotes/origin/master
                    std::atomic<bool>& running, int fps, bool isCursor) {
     auto frame_time = std::chrono::milliseconds(1000 / fps);
     int frame_count = 0;
@@ -138,7 +187,11 @@ void captureThread(X11Capturer* capturer, ANSIRenderer* renderer,
         frame_count++;
         
         if (isCursor) {
+<<<<<<< HEAD
             X11Capturer::CursorData cursor = capturer->getCursor();
+=======
+            auto cursor = capturer->getCursor();
+>>>>>>> refs/remotes/origin/master
             renderer->setCursor(cursor);
         }
 
@@ -183,8 +236,12 @@ void inputThread(InputHandler* input, std::atomic<bool>& running) {
 }
 
 void show_help(const char* prog) {
+<<<<<<< HEAD
   std::cout << "Usage: " << prog << " [options] <executable> [its args...]\n"
               << "To adjust zoom, use Ctrl + mouse scroll. To change current view area (panning), Ctrl + drag. Ctrl + \\ to exit.\n"
+=======
+    std::cout << "Usage: " << prog << " [options] <executable> [its args...]\n"
+>>>>>>> refs/remotes/origin/master
               << "Options:\n"
               << "  -r, --refresh-rate <fps>   Set target FPS (default: 30)\n"
               << "  -w, --width <pixels>       Set virtual screen width\n"
@@ -206,6 +263,10 @@ int main(int argc, char** argv) {
     std::string bin_path;
     std::vector<std::string> bin_args;
 
+<<<<<<< HEAD
+=======
+    // 1. Argument Parsing
+>>>>>>> refs/remotes/origin/master
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-r" || arg == "--refresh-rate") {
@@ -234,15 +295,28 @@ int main(int argc, char** argv) {
     }
 
     if (bin_path.empty()) {
+<<<<<<< HEAD
+=======
+        std::cerr << "Error: No command provided.\n";
+>>>>>>> refs/remotes/origin/master
         show_help(argv[0]);
         return 1;
     }
 
+<<<<<<< HEAD
     if (!commandExists("Xvfb")) { std::cerr << "Error: Xvfb not found.\n"; return 1; }
 
     std::string script_dir = getSelfPath();
     std::string wm_binary = script_dir + "/.wm";
     if (access(wm_binary.c_str(), X_OK) != 0) wm_binary = script_dir + "/../build/.wm";
+=======
+    // 2. Environment & Xvfb Setup
+    if (!commandExists("Xvfb")) { std::cerr << "Error: Xvfb not found.\n"; return 1; }
+
+    std::string script_dir = getSelfPath();
+    std::string wm_binary = script_dir + "/mirrors-wm";
+    if (access(wm_binary.c_str(), X_OK) != 0) wm_binary = script_dir + "/../build/mirrors-wm";
+>>>>>>> refs/remotes/origin/master
 
     int display_num = findFreeDisplay();
     std::string display_str = ":" + std::to_string(display_num);
@@ -269,22 +343,39 @@ int main(int argc, char** argv) {
         std::cerr << "Error: Xvfb failed.\n"; cleanupChildren(); return 1;
     }
     XSetErrorHandler(MyXErrorHandler);
+<<<<<<< HEAD
     XSetIOErrorHandler(MyXIOErrorHandler);
 
     if (access(wm_binary.c_str(), X_OK) == 0) {
         setenv("MIRRORS_INTERNAL", "1", 1);
+=======
+
+    // 3. Start WM
+    if (access(wm_binary.c_str(), X_OK) == 0) {
+>>>>>>> refs/remotes/origin/master
         wm_pid = fork();
         if (wm_pid == 0) {
             execl(wm_binary.c_str(), wm_binary.c_str(), NULL);
             exit(1);
         }
     } else {
+<<<<<<< HEAD
         std::cerr << "Warning: WM not found, apps might not maximize.\n";
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     app_pid = fork();
     if (app_pid == 0) {
+=======
+        std::cerr << "Warning: mirrors-wm not found, apps might not maximize.\n";
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // 4. Start Application
+    app_pid = fork();
+    if (app_pid == 0) {
+        // Suppress application logs
+>>>>>>> refs/remotes/origin/master
         int devnull = open("/dev/null", O_WRONLY);
         dup2(devnull, STDOUT_FILENO);
         dup2(devnull, STDERR_FILENO);
@@ -301,7 +392,13 @@ int main(int argc, char** argv) {
         execvp(args[0], args.data());
         exit(1);
     }
+<<<<<<< HEAD
 
+=======
+    
+#if !defined(BUILD_WAYLAND_BACKEND)
+    // X11-specific: Setup window geometry
+>>>>>>> refs/remotes/origin/master
     std::cout << "Waiting for window...\n";
     Window app_window = 0;
     int wait_counter = 0;
@@ -321,12 +418,21 @@ int main(int argc, char** argv) {
     }
 
     Window root_window = DefaultRootWindow(display);
+<<<<<<< HEAD
+=======
+#else
+    // Wayland: No window manipulation needed
+    std::cout << "Wayland mode: waiting for application...\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+#endif
+>>>>>>> refs/remotes/origin/master
 
     struct winsize ts;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &ts);
     int term_cols = ts.ws_col;
     int term_lines = ts.ws_row;
 
+<<<<<<< HEAD
 
     X11Capturer capturer;
     ANSIRenderer renderer;
@@ -337,26 +443,66 @@ int main(int argc, char** argv) {
 
     if (!capturer.init(display_str.c_str(), root_window, width, height)) {
         std::cerr << "Failed to initialize capturer (XShm check failed)\n";
+=======
+    // 6. Initialize Engine
+    Capturer capturer;
+    ANSIRenderer renderer;
+    InputHandler input;
+    
+#if !defined(BUILD_WAYLAND_BACKEND)
+    // X11: Close display so capturer can open its own
+    XCloseDisplay(display);
+
+    if (!capturer.init(display_str.c_str(), root_window, width, height)) {
+        std::cerr << "Failed to initialize capturer\n";
+>>>>>>> refs/remotes/origin/master
         cleanupChildren();
         return 1;
     }
+    
+    if (!input.init(display_str.c_str(), root_window, width, height, term_cols, term_lines)) {
+        std::cerr << "Warning: Failed to initialize input handler\n";
+    }
+#else
+    // Wayland: Simplified init
+    if (!capturer.init(width, height)) {
+        std::cerr << "Failed to initialize Wayland capturer\n";
+        cleanupChildren();
+        return 1;
+    }
+    
+    if (!input.init(width, height, term_cols, term_lines)) {
+        std::cerr << "Warning: Failed to initialize Wayland input handler\n";
+    }
+#endif
     
     renderer.setDimensions(term_cols, term_lines);
     renderer.setImageSize(width, height);
     if (cell_char != 0) renderer.setCellChar(cell_char);
     renderer.setMode(mode);
     
+<<<<<<< HEAD
     if (!input.init(display_str.c_str(), root_window, width, height, term_cols, term_lines)) {
         std::cerr << "Warning: Failed to initialize input handler\n";
     }
+=======
+>>>>>>> refs/remotes/origin/master
     input.setRenderer(&renderer);
     input.setShellPid(app_pid);
 
     setupTerminal();
     
+<<<<<<< HEAD
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     
+=======
+    // Ignore SIGINT and SIGTSTP - they'll be forwarded to the app via input handler
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    
+    // Handle SIGTERM and SIGQUIT for graceful shutdown
+>>>>>>> refs/remotes/origin/master
     signal(SIGTERM, signalHandler);
     signal(SIGQUIT, signalHandler);
     

@@ -135,6 +135,11 @@ void InputHandler::processInput() {
             }
         }
         
+<<<<<<< HEAD:src/input.cpp
+=======
+        
+        // Ctrl+\ (0x1C) - exit mirrors application
+>>>>>>> refs/remotes/origin/master:src/x11/input.cpp
         if (buf[pos] == 0x1C) {
             std::cerr << "Ctrl+\\ detected, exiting" << std::endl;
             exit(0);

@@ -26,9 +26,16 @@ private:
     int pan_start_x;
     int pan_start_y;
     
+<<<<<<< HEAD:src/input.h
  
     pid_t shell_pid;
 
+=======
+    // Shell process for signal forwarding
+    pid_t shell_pid;
+    
+    // Escape sequence to X11 KeySym mapping
+>>>>>>> refs/remotes/origin/master:src/x11/input.h
     std::unordered_map<std::string, unsigned int> key_mapping;
     
     ANSIRenderer* renderer;

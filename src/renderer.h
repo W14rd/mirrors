@@ -1,5 +1,14 @@
 #pragma once
-#include "capture.h"
+
+// Backend-specific cursor data type
+#if defined(BUILD_WAYLAND_BACKEND)
+    #include "wayland/capture.h"
+    using CaptureBackend = WaylandCapturer;
+#else
+    #include "x11/capture.h"
+    using CaptureBackend = X11Capturer;
+#endif
+
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -27,8 +36,13 @@ private:
     uint8_t color_lookup[32768];
     uint8_t grayscale_lookup[256];
     
+<<<<<<< HEAD
 
     X11Capturer::CursorData current_cursor;
+=======
+    // Current cursor data (backend-agnostic)
+    CaptureBackend::CursorData current_cursor;
+>>>>>>> refs/remotes/origin/master
     
     void clampViewport();
     
@@ -48,7 +62,12 @@ public:
 
     void mapTermToImage(int term_x, int term_y, int& img_x, int& img_y);
     
+<<<<<<< HEAD
     void setCursor(const X11Capturer::CursorData& cursor) {
+=======
+    // Set cursor for software rendering (backend-agnostic)
+    void setCursor(const CaptureBackend::CursorData& cursor) {
+>>>>>>> refs/remotes/origin/master
         current_cursor = cursor;
     }
     
