@@ -1,23 +1,15 @@
-// Backend selection: X11 or Wayland
-#if defined(BUILD_WAYLAND_BACKEND)
-    #include "wayland/capture.h"
-    #include "wayland/input.h"
-    using Capturer = WaylandCapturer;
-    using InputHandler = WaylandInputHandler;
-#else
-    #include "x11/capture.h"
-    #include "x11/input.h"
-    using Capturer = X11Capturer;
-    using InputHandler = InputHandler;
-#endif
-
-#include "renderer.h"
-#include <iostream>
 #include <thread>
-#include <atomic>
 #include <chrono>
+#include <atomic>
 #include <vector>
 #include <string>
+#include <iostream>
+
+#include "x11/capture.h"
+#include "x11/input.h"
+using Capturer = X11Capturer;
+
+#include "renderer.h"
 #include <sstream>
 #include <algorithm>
 #include <unistd.h>
@@ -31,84 +23,76 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <filesystem>
-<<<<<<< HEAD
-
-
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-=======
->>>>>>> refs/remotes/origin/master
-
-// X11 includes (only for X11 backend)
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
-// Global control
 std::atomic<bool> running(true);
 struct termios orig_termios;
 
-<<<<<<< HEAD
-=======
-// Child Process IDs
->>>>>>> refs/remotes/origin/master
 pid_t xvfb_pid = -1;
 pid_t wm_pid = -1;
 pid_t app_pid = -1;
 
 void cleanupChildren() {
-    if (app_pid > 0) kill(app_pid, SIGTERM);
-    if (wm_pid > 0) kill(wm_pid, SIGTERM);
-    if (xvfb_pid > 0) kill(xvfb_pid, SIGTERM);
+    std::vector<pid_t> pids;
+    if (app_pid > 0) pids.push_back(app_pid);
+    if (wm_pid > 0) pids.push_back(wm_pid);
+    if (xvfb_pid > 0) pids.push_back(xvfb_pid);
+
+    if (pids.empty()) return;
+
+    for (pid_t pid : pids) kill(pid, SIGTERM);
+    
+    // Give them a moment to exit gracefully
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    for (pid_t pid : pids) {
+        if (waitpid(pid, NULL, WNOHANG) == 0) {
+            kill(pid, SIGKILL);
+            waitpid(pid, NULL, 0);
+        }
+    }
+    
+    // Final reap of any other children
+    while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 void restoreTerminal() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
-    write(STDOUT_FILENO, "\033[?25h\033[?1006l\033[?1002l\033[?1000l\033[0m\033[?7h\n", 40);
+    const char* reset_seq = "\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?25h\033[0m\033[?7h\n";
+    write(STDOUT_FILENO, reset_seq, strlen(reset_seq));
     cleanupChildren();
 }
 
-
 void signalHandler(int sig) {
-<<<<<<< HEAD
-
-=======
-    // Only exit on SIGTERM and SIGQUIT
-    // SIGINT (^C) and SIGTSTP (^Z) are handled via input forwarding
->>>>>>> refs/remotes/origin/master
     if (sig == SIGTERM || sig == SIGQUIT) {
         running = false;
     }
 }
 
 int MyXErrorHandler(Display* d, XErrorEvent* e) {
-    char error_text[256];
-    XGetErrorText(d, e->error_code, error_text, sizeof(error_text));
-<<<<<<< HEAD
+    (void)d; (void)e;
     return 0;
 }
 
 int MyXIOErrorHandler(Display* d) {
-    // Suppress fatal IO error messages on exit
-=======
-    // Suppress non-critical errors during startup
-    // fprintf(stderr, "X Error: %s (code: %d)\n", error_text, e->error_code);
->>>>>>> refs/remotes/origin/master
+    (void)d;
     return 0;
 }
 
-void setupTerminal() {
+void setupTerminal(bool track_mouse) {
     tcgetattr(STDIN_FILENO, &orig_termios);
     atexit(restoreTerminal);
     struct termios raw = orig_termios;
-<<<<<<< HEAD
     raw.c_lflag &= ~(ICANON | ECHO | ISIG);
-=======
-    raw.c_lflag &= ~(ICANON | ECHO | ISIG);  // Disable signals from terminal
->>>>>>> refs/remotes/origin/master
     raw.c_cc[VMIN] = 0;
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
-    write(STDOUT_FILENO, "\033[?25l\033[?1006h\033[?1002h\033[?1000h\033[?7l", 35);
+    if (track_mouse) {
+        write(STDOUT_FILENO, "\033[?25l\033[?1006h\033[?1003h\033[?1000h\033[?7l", 35);
+    } else {
+        write(STDOUT_FILENO, "\033[?25l\033[?1006h\033[?1002h\033[?1000h\033[?7l", 35);
+    }
 }
 
 std::string getSelfPath() {
@@ -137,11 +121,6 @@ int findFreeDisplay() {
     }
 }
 
-<<<<<<< HEAD
-
-=======
-// Recursive window finder
->>>>>>> refs/remotes/origin/master
 Window findAppWindow(Display* d, Window current_w) {
     Window root, parent, *children;
     unsigned int nchildren;
@@ -154,10 +133,6 @@ Window findAppWindow(Display* d, Window current_w) {
     for (unsigned int i = 0; i < nchildren; i++) {
         XWindowAttributes attrs;
         if (XGetWindowAttributes(d, children[i], &attrs)) {
-<<<<<<< HEAD
-=======
-            // Find a visible window that is reasonably large (ignoring helper windows)
->>>>>>> refs/remotes/origin/master
             if (attrs.map_state == IsViewable && attrs.width > 50 && attrs.height > 50) {
                 found = children[i];
                 break;
@@ -173,11 +148,7 @@ Window findAppWindow(Display* d, Window current_w) {
     return found;
 }
 
-<<<<<<< HEAD
-void captureThread(X11Capturer* capturer, ANSIRenderer* renderer,
-=======
 void captureThread(Capturer* capturer, ANSIRenderer* renderer,
->>>>>>> refs/remotes/origin/master
                    std::atomic<bool>& running, int fps, bool isCursor) {
     auto frame_time = std::chrono::milliseconds(1000 / fps);
     int frame_count = 0;
@@ -187,11 +158,7 @@ void captureThread(Capturer* capturer, ANSIRenderer* renderer,
         frame_count++;
         
         if (isCursor) {
-<<<<<<< HEAD
-            X11Capturer::CursorData cursor = capturer->getCursor();
-=======
             auto cursor = capturer->getCursor();
->>>>>>> refs/remotes/origin/master
             renderer->setCursor(cursor);
         }
 
@@ -236,37 +203,32 @@ void inputThread(InputHandler* input, std::atomic<bool>& running) {
 }
 
 void show_help(const char* prog) {
-<<<<<<< HEAD
-  std::cout << "Usage: " << prog << " [options] <executable> [its args...]\n"
-              << "To adjust zoom, use Ctrl + mouse scroll. To change current view area (panning), Ctrl + drag. Ctrl + \\ to exit.\n"
-=======
     std::cout << "Usage: " << prog << " [options] <executable> [its args...]\n"
->>>>>>> refs/remotes/origin/master
+              << "To adjust zoom, use Ctrl + mouse scroll. To change current view area (panning), Ctrl + drag. Ctrl + \\ to exit.\n"
               << "Options:\n"
               << "  -r, --refresh-rate <fps>   Set target FPS (default: 30)\n"
               << "  -w, --width <pixels>       Set virtual screen width\n"
               << "  -h, --height <pixels>      Set virtual screen height\n"
+              << "  -s, --secs <int>        How long to wait for window\n"
               << "  --cell <char>              Use character for rendering\n"
               << "  --ansi                     Enable standard ANSI colors\n"
-              << "  --rgb                      Enable TrueColor (default)\n"
               << "  --grey                     Enable Grayscale\n"
-              << "  --cursor                   Show cursor\n";
+              << "  --cursor                   Show cursor\n"
+              << "  --nomouse                  Disable mouse move tracking\n";
 }
 
 int main(int argc, char** argv) {
     int fps = 30;
     int width = 1920;
     int height = 1080;
+    int wsecs = 10;
     char cell_char = 0;
     RenderMode mode = RenderMode::TRUECOLOR;
     bool isCursor = false;
+    bool trackMouse = true;
     std::string bin_path;
     std::vector<std::string> bin_args;
 
-<<<<<<< HEAD
-=======
-    // 1. Argument Parsing
->>>>>>> refs/remotes/origin/master
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-r" || arg == "--refresh-rate") {
@@ -275,6 +237,8 @@ int main(int argc, char** argv) {
             if (i + 1 < argc) width = std::stoi(argv[++i]);
         } else if (arg == "-h" || arg == "--height") {
             if (i + 1 < argc) height = std::stoi(argv[++i]);
+        } else if (arg == "-s" || arg == "--secs") {
+            if (i + 1 < argc) wsecs = std::stoi(argv[++i]);
         } else if (arg == "--cell") {
             if (i + 1 < argc) cell_char = argv[++i][0];
         } else if (arg == "--ansi") {
@@ -283,9 +247,9 @@ int main(int argc, char** argv) {
             mode = RenderMode::GRAYSCALE;
         } else if (arg == "--cursor") {
             isCursor = true;
-        } else if (arg == "--rgb") {
-            mode = RenderMode::TRUECOLOR;
-        } else if (arg == "--help") {
+        } else if (arg == "--nomouse") {
+            trackMouse = false;
+        } else if (arg == "--help" || arg == "help") {
             show_help(argv[0]);
             return 0;
         } else {
@@ -295,34 +259,25 @@ int main(int argc, char** argv) {
     }
 
     if (bin_path.empty()) {
-<<<<<<< HEAD
-=======
-        std::cerr << "Error: No command provided.\n";
->>>>>>> refs/remotes/origin/master
         show_help(argv[0]);
         return 1;
     }
 
-<<<<<<< HEAD
-    if (!commandExists("Xvfb")) { std::cerr << "Error: Xvfb not found.\n"; return 1; }
+    if (!commandExists(bin_path)) {
+        std::cerr << "Error: command '" << bin_path << "' not found\n";
+        return 1;
+    }
+
+    if (!commandExists("Xvfb")) { std::cerr << "Error: Xvfb not found\n"; return 1; }
 
     std::string script_dir = getSelfPath();
     std::string wm_binary = script_dir + "/.wm";
-    if (access(wm_binary.c_str(), X_OK) != 0) wm_binary = script_dir + "/../build/.wm";
-=======
-    // 2. Environment & Xvfb Setup
-    if (!commandExists("Xvfb")) { std::cerr << "Error: Xvfb not found.\n"; return 1; }
-
-    std::string script_dir = getSelfPath();
-    std::string wm_binary = script_dir + "/mirrors-wm";
-    if (access(wm_binary.c_str(), X_OK) != 0) wm_binary = script_dir + "/../build/mirrors-wm";
->>>>>>> refs/remotes/origin/master
 
     int display_num = findFreeDisplay();
     std::string display_str = ":" + std::to_string(display_num);
     setenv("DISPLAY", display_str.c_str(), 1);
 
-    std::cout << "Starting Display " << display_str << " (" << width << "x" << height << ")...\n";
+    std::cout << "Starting display " << display_str << " (" << width << "x" << height << ")...\n";
 
     xvfb_pid = fork();
     if (xvfb_pid == 0) {
@@ -340,42 +295,25 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     if (!display) {
-        std::cerr << "Error: Xvfb failed.\n"; cleanupChildren(); return 1;
+        std::cerr << "Error: Xvfb failed\n"; cleanupChildren(); return 1;
     }
     XSetErrorHandler(MyXErrorHandler);
-<<<<<<< HEAD
     XSetIOErrorHandler(MyXIOErrorHandler);
 
     if (access(wm_binary.c_str(), X_OK) == 0) {
         setenv("MIRRORS_INTERNAL", "1", 1);
-=======
-
-    // 3. Start WM
-    if (access(wm_binary.c_str(), X_OK) == 0) {
->>>>>>> refs/remotes/origin/master
         wm_pid = fork();
         if (wm_pid == 0) {
             execl(wm_binary.c_str(), wm_binary.c_str(), NULL);
             exit(1);
         }
     } else {
-<<<<<<< HEAD
-        std::cerr << "Warning: WM not found, apps might not maximize.\n";
+        std::cerr << "Warning: WM not found\n";
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     app_pid = fork();
     if (app_pid == 0) {
-=======
-        std::cerr << "Warning: mirrors-wm not found, apps might not maximize.\n";
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    // 4. Start Application
-    app_pid = fork();
-    if (app_pid == 0) {
-        // Suppress application logs
->>>>>>> refs/remotes/origin/master
         int devnull = open("/dev/null", O_WRONLY);
         dup2(devnull, STDOUT_FILENO);
         dup2(devnull, STDERR_FILENO);
@@ -386,76 +324,52 @@ int main(int argc, char** argv) {
         else if (commandExists("dbus-launch")) {
             args.push_back(strdup("dbus-launch")); args.push_back(strdup("--exit-with-session"));
         }
+
         args.push_back(strdup(bin_path.c_str()));
         for (const auto& a : bin_args) args.push_back(strdup(a.c_str()));
         args.push_back(NULL);
         execvp(args[0], args.data());
         exit(1);
     }
-<<<<<<< HEAD
-
-=======
     
-#if !defined(BUILD_WAYLAND_BACKEND)
-    // X11-specific: Setup window geometry
->>>>>>> refs/remotes/origin/master
-    std::cout << "Waiting for window...\n";
-    Window app_window = 0;
-    int wait_counter = 0;
-    while (wait_counter < 100 && running) {
-        app_window = findAppWindow(display, DefaultRootWindow(display));
-        if (app_window != 0) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        wait_counter++;
-    }
+    Window root_window = 0;
+    {
+        std::cout << "Waiting for window...\n";
+        Window app_window = 0;
+        int wait_counter = 0;
+        while (wait_counter < wsecs && running) {
+            app_window = findAppWindow(display, DefaultRootWindow(display));
+            if (app_window != 0) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            wait_counter++;
+        }
 
-    if (app_window != 0) {
-        XMoveResizeWindow(display, app_window, 0, 0, width, height);
-        XMapWindow(display, app_window);
-        XFlush(display);
-    } else {
-        std::cerr << "Warning: No visible app window found (capturing background).\n";
+        if (app_window != 0) {
+            XMoveResizeWindow(display, app_window, 0, 0, width, height);
+            XMapWindow(display, app_window);
+            XFlush(display);
+        } else {
+            std::cerr << "Error: no visible app window found. If it runs in bash, launch a terminal emulator first (e.g. ./build/mirrors xterm -e \"" << bin_path << "\"). "
+            "If that is not the case, set -s at a large number so it will wait more\n";
+            cleanupChildren();
+            exit(1);
+        }
+        root_window = DefaultRootWindow(display);
     }
-
-    Window root_window = DefaultRootWindow(display);
-<<<<<<< HEAD
-=======
-#else
-    // Wayland: No window manipulation needed
-    std::cout << "Wayland mode: waiting for application...\n";
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-#endif
->>>>>>> refs/remotes/origin/master
 
     struct winsize ts;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &ts);
     int term_cols = ts.ws_col;
     int term_lines = ts.ws_row;
 
-<<<<<<< HEAD
-
-    X11Capturer capturer;
-    ANSIRenderer renderer;
-    InputHandler input;
-    
-
-    XCloseDisplay(display);
-
-    if (!capturer.init(display_str.c_str(), root_window, width, height)) {
-        std::cerr << "Failed to initialize capturer (XShm check failed)\n";
-=======
-    // 6. Initialize Engine
     Capturer capturer;
     ANSIRenderer renderer;
     InputHandler input;
     
-#if !defined(BUILD_WAYLAND_BACKEND)
-    // X11: Close display so capturer can open its own
     XCloseDisplay(display);
 
     if (!capturer.init(display_str.c_str(), root_window, width, height)) {
         std::cerr << "Failed to initialize capturer\n";
->>>>>>> refs/remotes/origin/master
         cleanupChildren();
         return 1;
     }
@@ -463,61 +377,34 @@ int main(int argc, char** argv) {
     if (!input.init(display_str.c_str(), root_window, width, height, term_cols, term_lines)) {
         std::cerr << "Warning: Failed to initialize input handler\n";
     }
-#else
-    // Wayland: Simplified init
-    if (!capturer.init(width, height)) {
-        std::cerr << "Failed to initialize Wayland capturer\n";
-        cleanupChildren();
-        return 1;
-    }
-    
-    if (!input.init(width, height, term_cols, term_lines)) {
-        std::cerr << "Warning: Failed to initialize Wayland input handler\n";
-    }
-#endif
     
     renderer.setDimensions(term_cols, term_lines);
     renderer.setImageSize(width, height);
     if (cell_char != 0) renderer.setCellChar(cell_char);
     renderer.setMode(mode);
     
-<<<<<<< HEAD
-    if (!input.init(display_str.c_str(), root_window, width, height, term_cols, term_lines)) {
-        std::cerr << "Warning: Failed to initialize input handler\n";
-    }
-=======
->>>>>>> refs/remotes/origin/master
     input.setRenderer(&renderer);
     input.setShellPid(app_pid);
+    input.setTrackMouseMove(trackMouse);
 
-    setupTerminal();
+    setupTerminal(trackMouse);
     
-<<<<<<< HEAD
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     
-=======
-    // Ignore SIGINT and SIGTSTP - they'll be forwarded to the app via input handler
-    signal(SIGINT, SIG_IGN);
-    signal(SIGTSTP, SIG_IGN);
-    
-    // Handle SIGTERM and SIGQUIT for graceful shutdown
->>>>>>> refs/remotes/origin/master
     signal(SIGTERM, signalHandler);
     signal(SIGQUIT, signalHandler);
     
     write(STDOUT_FILENO, "\033[2J\033[H", 7);
     
-    std::thread capture_thread(captureThread, &capturer, &renderer, std::ref(running), fps, isCursor);
-    std::thread input_thread_obj(inputThread, &input, std::ref(running));
+    auto capture_thread = std::thread(captureThread, &capturer, &renderer, std::ref(running), fps, isCursor);
+    auto input_thread_obj = std::thread(inputThread, &input, std::ref(running));
     
-    // Monitor WM process
     while (running) {
         if (wm_pid > 0) {
             int status;
             pid_t result = waitpid(wm_pid, &status, WNOHANG);
             if (result != 0) {
-                // WM has exited
                 running = false;
                 break;
             }

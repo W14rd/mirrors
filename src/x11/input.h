@@ -20,22 +20,14 @@ private:
     int last_mouse_x;
     int last_mouse_y;
     
-
     bool potential_pan;
     bool panning_active;
     int pan_start_x;
     int pan_start_y;
     
-<<<<<<< HEAD:src/input.h
- 
     pid_t shell_pid;
-
-=======
-    // Shell process for signal forwarding
-    pid_t shell_pid;
+    bool track_mouse_move;
     
-    // Escape sequence to X11 KeySym mapping
->>>>>>> refs/remotes/origin/master:src/x11/input.h
     std::unordered_map<std::string, unsigned int> key_mapping;
     
     ANSIRenderer* renderer;
@@ -53,8 +45,8 @@ public:
     
     void setRenderer(ANSIRenderer* r) { renderer = r; }
     void setShellPid(pid_t pid) { shell_pid = pid; }
+    void setTrackMouseMove(bool track) { track_mouse_move = track; }
     
-
     void processInput();
     
     void updateTerminalSize(int cols, int lines) { term_cols = cols; term_lines = lines; }

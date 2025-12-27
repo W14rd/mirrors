@@ -32,4 +32,5 @@ Run:
 ```
 
 Wait some time, during which a WM session is launched, and the provided app opens. All apps opened by the provided app are also rendered in this WM. To adjust zoom, use Ctrl + mouse scroll. To change current view area (panning), Ctrl + drag. Afterwards, ^\\ to exit.
-If you have performance issues, the -r flag probably won't help. Use --ansi (or --grey as last resort) and decrease font size
+To adjust time it waits for the app (so it detects heavier ones), set -s <\int> flag. That should fix "window not found".
+If you have performance issues, the -r flag probably won't help. Use --nomouse, --ansi (or --grey as last resort) and decrease font size.

@@ -252,7 +252,7 @@ void ANSIRenderer::renderFrame(const uint8_t* rgb_data, int width, int height,
                     if (last_r != 0 || last_g != 0 || last_b != 0 || last_ansi != -2) {
                         buffer.append("\033[49m", 5);
                         last_r = 0; last_g = 0; last_b = 0;
-                        last_ansi = -2; // Special value for transparent
+                        last_ansi = -2; // tf
                     }
                 } else if (r != last_r || g != last_g || b != last_b) {
                     int len = snprintf(tmp_seq, sizeof(tmp_seq), "\033[48;2;%d;%d;%dm", r, g, b);

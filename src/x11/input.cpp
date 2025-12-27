@@ -11,7 +11,7 @@ InputHandler::InputHandler()
     : display(nullptr), target_window(0), term_cols(0), term_lines(0),
       button_state(0), last_mouse_x(0), last_mouse_y(0),
       potential_pan(false), panning_active(false), pan_start_x(0), pan_start_y(0),
-      shell_pid(-1), renderer(nullptr) {
+      shell_pid(-1), renderer(nullptr), track_mouse_move(true) {
 }
 
 InputHandler::~InputHandler() {
@@ -135,14 +135,12 @@ void InputHandler::processInput() {
             }
         }
         
-<<<<<<< HEAD:src/input.cpp
-=======
         
         // Ctrl+\ (0x1C) - exit mirrors application
->>>>>>> refs/remotes/origin/master:src/x11/input.cpp
         if (buf[pos] == 0x1C) {
             std::cerr << "Ctrl+\\ detected, exiting" << std::endl;
-            exit(0);
+            kill(getpid(), SIGTERM);
+            return;
         }
         
         bool handled = false;
@@ -347,6 +345,7 @@ bool InputHandler::parseSGRMouse(const char* buf, int len, int& consumed) {
     
     int xbutton = 0;
     bool is_drag = false;
+    bool is_motion = false;
     
     if (button & 64) {
         int wheel_code = button & 3;
@@ -374,9 +373,9 @@ bool InputHandler::parseSGRMouse(const char* buf, int len, int& consumed) {
     } else {
         int btn_code = button & 3;
         is_drag = (button & 32) != 0;
+        is_motion = (button & 64) == 0 && btn_code == 3 && event_type == 'M';
         bool ctrl_held = (button & 16) != 0;
         
-
         if (ctrl_held && btn_code == 0 && renderer) {
             if (event_type == 'M') {
                 if (!is_drag) {
@@ -427,8 +426,12 @@ bool InputHandler::parseSGRMouse(const char* buf, int len, int& consumed) {
         if (btn_code == 0) xbutton = 1;
         else if (btn_code == 1) xbutton = 2;
         else if (btn_code == 2) xbutton = 3;
+        else if (btn_code == 3 && event_type == 'm') xbutton = button_state; // Release
     }
     
+    if (event_type == 'M' && !is_drag && !is_motion) button_state = xbutton;
+    if (event_type == 'm') button_state = 0;
+
     last_mouse_x = x;
     last_mouse_y = y;
     

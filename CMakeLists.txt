@@ -29,16 +29,16 @@ endif()
 # Source files
 set(SOURCES
     src/main.cpp
-    src/capture.cpp
+    src/x11/capture.cpp
     src/renderer.cpp
-    src/input.cpp
+    src/x11/input.cpp
 )
 
 # Create executable
 add_executable(mirrors ${SOURCES})
 
 # Include directories
-target_include_directories(mirrors PRIVATE ${X11_INCLUDE_DIR})
+target_include_directories(mirrors PRIVATE ${X11_INCLUDE_DIR} src src/x11)
 
 # Link libraries
 target_link_libraries(mirrors 
@@ -51,11 +51,11 @@ target_link_libraries(mirrors
 )
 
 # Window Manager
-add_executable(.wm src/wm.cpp)
+add_executable(.wm src/x11/wm.cpp)
 target_link_libraries(.wm ${X11_LIBRARIES})
 
 # Installation
-install(TARGETS mirrors DESTINATION bin)
+install(TARGETS mirrors .wm DESTINATION bin)
 
 # Print build info
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
