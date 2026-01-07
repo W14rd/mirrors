@@ -10,6 +10,7 @@ Look up exact names for your package manager, but usually they end with prefixes
 - libXext
 - libXtst
 - libXamage
+
 If the device doesn't have SIMD support, edit CMakeLists.txt, search for "-msse2" and remove the line containing it.
 
 ## Build
