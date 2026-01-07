@@ -1,19 +1,15 @@
 cmake_minimum_required(VERSION 3.10)
 project(mirrors VERSION 1.0)
 
-# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Compiler optimizations
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -Wall -Wextra")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")  # Enable SSE2 SIMD
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")  # this line
 
-# Find required packages
 find_package(X11 REQUIRED)
 find_package(Threads REQUIRED)
 
-# Check for required X11 extensions
 if(NOT X11_Xext_LIB)
     message(FATAL_ERROR "Xext library not found")
 endif()
@@ -26,7 +22,6 @@ if(NOT X11_Xdamage_LIB)
     message(FATAL_ERROR "Xdamage library not found")
 endif()
 
-# Source files
 set(SOURCES
     src/main.cpp
     src/x11/capture.cpp
@@ -34,13 +29,10 @@ set(SOURCES
     src/x11/input.cpp
 )
 
-# Create executable
 add_executable(mirrors ${SOURCES})
 
-# Include directories
 target_include_directories(mirrors PRIVATE ${X11_INCLUDE_DIR} src src/x11)
 
-# Link libraries
 target_link_libraries(mirrors 
     ${X11_LIBRARIES}
     ${X11_Xext_LIB}
@@ -50,14 +42,11 @@ target_link_libraries(mirrors
     Threads::Threads
 )
 
-# Window Manager
 add_executable(.wm src/x11/wm.cpp)
 target_link_libraries(.wm ${X11_LIBRARIES})
 
-# Installation
 install(TARGETS mirrors .wm DESTINATION bin)
 
-# Print build info
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Compiler flags: ${CMAKE_CXX_FLAGS}")
 message(STATUS "X11 libraries: ${X11_LIBRARIES}")
